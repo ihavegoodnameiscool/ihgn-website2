@@ -4,17 +4,230 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>ihavegoodname</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root{
+      --bg-1: #0b1220; /* deep navy */
+      --bg-2: #0f1724; /* slightly lighter */
+      --panel: rgba(255,255,255,0.03);
+      --accent: #7dd3fc; /* soft cyan */
+      --muted: rgba(255,255,255,0.6);
+      --glass: rgba(255,255,255,0.04);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(125,211,252,0.03), transparent 10%),
+                  radial-gradient(1000px 500px at 90% 90%, rgba(99,102,241,0.02), transparent 12%),
+                  linear-gradient(180deg,var(--bg-1),var(--bg-2));
+      color:var(--muted);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      overflow:hidden;
+    }
+    /* full-screen canvas layer */
+    canvas#particles {
+      position:fixed;inset:0;display:block;
+      z-index:0;
+    }
+    /* center content */
+    .wrap{
+      position:relative;z-index:5;min-height:100vh;display:flex;align-items:center;justify-content:center;pointer-events:none;
+    }
+    .card{
+      text-align:center;padding:40px 60px;border-radius:18px;backdrop-filter:blur(6px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      pointer-events:auto;
+    }
+    h1{
+      margin:0;font-weight:700;font-size:clamp(36px,9vw,120px);letter-spacing:0.02em;color:white;
+      text-shadow: 0 6px 30px rgba(0,0,0,0.6);
+    }
+    p.lead{
+      margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.65)
+    }
+    /* subtle footer note */
+    .hint{position:fixed;left:16px;bottom:14px;font-size:12px;color:rgba(255,255,255,0.35);z-index:6}
+    @media (max-width:520px){
+      .card{padding:20px}
+      h1{font-size:36px}
+    }
+  </style>
 </head>
 <body>
-  <!-- Particle background -->
   <canvas id="particles"></canvas>
 
-  <!-- Main text -->
-  <div class="center">
-    <h1>ihavegoodname</h1>
+  <div class="wrap">
+    <div class="card" role="main">
+      <h1>ihavegoodname</h1>
+      <p class="lead">move your mouse — particles will follow</p>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <div class="hint">Dark mode · Interactive particles</div>
+
+  <script>
+    (function(){
+      const canvas = document.getElementById('particles');
+      const ctx = canvas.getContext('2d');
+      let W = canvas.width = innerWidth;
+      let H = canvas.height = innerHeight;
+
+      const DPR = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = W * DPR; canvas.height = H * DPR; canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.scale(DPR, DPR);
+
+      // Settings
+      const PARTICLE_COUNT = Math.round((W * H) / 9000); // density scales with screen
+      const MAX_PARTICLE_SIZE = 3.5;
+      const MIN_PARTICLE_SIZE = 0.6;
+
+      const particles = [];
+      const mouse = { x: W/2, y: H/2, vx:0, vy:0, isDown:false };
+
+      function rand(min,max){return Math.random()*(max-min)+min}
+
+      function createParticle(x,y,drift){
+        const angle = Math.random()*Math.PI*2;
+        const speed = rand(0.02,0.6) * (drift?1.5:1);
+        return {
+          x: x !== undefined ? x : rand(0,W),
+          y: y !== undefined ? y : rand(0,H),
+          vx: Math.cos(angle)*speed,
+          vy: Math.sin(angle)*speed,
+          size: rand(MIN_PARTICLE_SIZE, MAX_PARTICLE_SIZE),
+          life: rand(80,400),
+          maxLife:0,
+          hue: rand(190,210),
+          alpha: rand(0.25,0.95),
+        };
+      }
+
+      function init(){
+        particles.length = 0;
+        for(let i=0;i<PARTICLE_COUNT;i++) particles.push(createParticle());
+      }
+
+      // responsiveness
+      let resizeTimer;
+      window.addEventListener('resize', ()=>{
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(()=>{
+          W = canvas.width = innerWidth; H = canvas.height = innerHeight;
+          canvas.width = W * DPR; canvas.height = H * DPR; canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+          ctx.scale(DPR, DPR);
+          init();
+        }, 120);
+      });
+
+      // mouse
+      window.addEventListener('pointermove', (e)=>{
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+      });
+      window.addEventListener('pointerdown', (e)=>{ mouse.isDown = true; });
+      window.addEventListener('pointerup', (e)=>{ mouse.isDown = false; });
+
+      // touch fallback
+      window.addEventListener('touchstart', (e)=>{ if(e.touches[0]){ mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; } });
+      window.addEventListener('touchmove', (e)=>{ if(e.touches[0]){ mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; } });
+
+      function step(){
+        ctx.clearRect(0,0,W,H);
+
+        // subtle background vignette
+        const grd = ctx.createRadialGradient(W*0.5,H*0.35,0,W*0.5,H*0.5,Math.max(W,H));
+        grd.addColorStop(0,'rgba(255,255,255,0.015)');
+        grd.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = grd; ctx.fillRect(0,0,W,H);
+
+        // draw and update particles
+        for(let i=0;i<particles.length;i++){
+          const p = particles[i];
+
+          // attraction toward mouse when within range
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
+          const dist = Math.sqrt(dx*dx + dy*dy) + 0.001;
+
+          // influence radius scales with screen
+          const r = Math.min(300, Math.max(120, (W+H)/10));
+          if(dist < r){
+            // attraction force (stronger when pointer is down)
+            const force = (1 - dist / r) * (mouse.isDown ? 0.65 : 0.28);
+            p.vx += (dx / dist) * force * 0.5;
+            p.vy += (dy / dist) * force * 0.5;
+            // small growth when near pointer
+            p.size = Math.min(MAX_PARTICLE_SIZE+2, p.size + 0.03);
+          } else {
+            // gentle size decay back to baseline
+            p.size = Math.max(MIN_PARTICLE_size || MIN_PARTICLE_SIZE, p.size - 0.01);
+          }
+
+          // subtle wandering
+          p.vx += Math.cos(p.x*0.001 + p.y*0.001) * 0.0008;
+          p.vy += Math.sin(p.y*0.001 - p.x*0.001) * 0.0008;
+
+          // apply velocity
+          p.x += p.vx;
+          p.y += p.vy;
+
+          // friction
+          p.vx *= 0.985; p.vy *= 0.985;
+
+          // wrap around edges
+          if(p.x < -10) p.x = W + 10;
+          if(p.x > W + 10) p.x = -10;
+          if(p.y < -10) p.y = H + 10;
+          if(p.y > H + 10) p.y = -10;
+
+          // draw particle
+          ctx.beginPath();
+          const alpha = Math.max(0.04, Math.min(1, p.alpha));
+          ctx.fillStyle = `rgba(125,211,252,${alpha})`;
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+          ctx.fill();
+
+          // small trailing stroke
+          ctx.beginPath();
+          ctx.globalAlpha = 0.06;
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x - p.vx*4, p.y - p.vy*4);
+          ctx.strokeStyle = 'rgba(125,211,252,0.15)';
+          ctx.lineWidth = Math.max(1, p.size*0.5);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        // spawn a few new particles near pointer to emphasize follow
+        if(Math.random() < 0.12){
+          const n = Math.random() < 0.3 ? 2 : 1;
+          for(let i=0;i<n;i++) particles.push(createParticle(mouse.x + rand(-18,18), mouse.y + rand(-18,18), true));
+        }
+
+        // trim if too many
+        while(particles.length > Math.max(PARTICLE_COUNT*1.8, 120)) particles.shift();
+
+        requestAnimationFrame(step);
+      }
+
+      // initialize
+      init();
+      // small delay before starting animation to avoid frame jank on load
+      requestAnimationFrame(step);
+
+      // accessibility: pause motion if prefers-reduced-motion
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      if(mq.matches){
+        // stop animating; render static soft dots
+        cancelAnimationFrame(step);
+      }
+
+      // expose for debugging (optional)
+      window.__particles = { particles };
+    })();
+  </script>
 </body>
 </html>
