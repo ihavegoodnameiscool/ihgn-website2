@@ -1,10 +1,11 @@
 /* Reset */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; width: 100%; overflow: hidden; font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+html, body { height: 100%; width: 100%; overflow: hidden; }
 
 /* Dark background */
 body {
-  background: #0d1117; /* GitHub dark mode style */
+  background: #0d1117; /* GitHub-style dark mode */
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: #fff;
 }
 
@@ -16,16 +17,17 @@ body {
   z-index: 0;
 }
 
-/* Centered text */
+/* Perfectly centered container */
 .center {
-  position: relative;
+  position: fixed;      /* stay in the middle */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
   z-index: 1;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
+/* Main text */
 h1 {
   font-size: clamp(2.5rem, 8vw, 6rem);
   font-weight: 800;
@@ -33,5 +35,4 @@ h1 {
   background: linear-gradient(90deg, #00c6ff, #0072ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-align: center;
 }
